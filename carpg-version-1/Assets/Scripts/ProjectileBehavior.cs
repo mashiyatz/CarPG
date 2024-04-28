@@ -6,6 +6,7 @@ public class ProjectileBehavior : MonoBehaviour
 {
     private Rigidbody rb;
     public float projectileSpeed;
+    [SerializeField] private bool isEnemy;
 
     void Start()
     {
@@ -22,10 +23,13 @@ public class ProjectileBehavior : MonoBehaviour
 
     private void OnTriggerEnter(Collider other)
     {
-        if (other.transform.CompareTag("Enemy"))
+        if (other.transform.CompareTag("Enemy") && !isEnemy)
         {
             Destroy(other.gameObject);
             Destroy(gameObject);
+        } else if (other.transform.CompareTag("Player") && isEnemy)
+        {
+            other.GetComponent<PlayerControl>().LoseLife();
         }
         
     }

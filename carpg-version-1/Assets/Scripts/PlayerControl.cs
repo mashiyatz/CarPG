@@ -1,16 +1,28 @@
+using System;
 using System.Collections;
 using System.Collections.Generic;
+using UnityEditor.U2D;
 using UnityEngine;
+using UnityEngine.Rendering;
 
 public class PlayerControl : MonoBehaviour
 {
-    [SerializeField] private float fwdMaxSpeed;
+    [SerializeField] private float maxSpeed;
     [SerializeField] private float acceleration;
-    [SerializeField] private float sideMaxSpeed;
     private Rigidbody rb;
     private StateManager manager;
+    public GameObject dustParticles;
+    public Transform carBody;
 
     [SerializeField] private GameObject projectilePrefab;
+
+    [SerializeField] private int lives;
+    [SerializeField] private Transform livesContainer;
+    [SerializeField] private GameObject livesIconPrefab;
+    public GameObject[] directionIcons; // fwd, back, left, right
+    private Vector3 targetPos;
+    private int collisionCount = 0;
+    private bool isImmune = false;
 
     private void Awake()
     {
@@ -22,110 +34,69 @@ public class PlayerControl : MonoBehaviour
         rb = GetComponent<Rigidbody>();
     }
 
+    public void LoseLife()
+    {
+        if (livesContainer.childCount > 0)
+        {
+            Destroy(livesContainer.GetChild(0).gameObject);
+        } 
+        if (livesContainer.childCount <= 0)
+        {
+            Application.Quit();
+        }
+    }
+
+    public IEnumerator HaveTemporaryImmunity(float duration = 0.5f)
+    {
+        isImmune = true;
+        yield return new WaitForSeconds(duration);
+        isImmune = false;
+    }
+
+    private void OnCollisionEnter(Collision collision)
+    {
+        if (isImmune) return;
+        if (!collision.collider.CompareTag("Road"))
+        {
+            manager.cameraFX.StartShake();
+            StartCoroutine(HaveTemporaryImmunity());
+            manager.DoubleLag();
+            collisionCount += 1;
+            if (collisionCount == 3)
+            {
+                collisionCount = 0;
+                LoseLife();
+            }
+        } 
+    }
+
     private void FixedUpdate()
     {
-        if (manager.currentState != StateManager.STATE.DRIVE)
+        float speed = rb.velocity.magnitude * GlobalParams.speedScale;
+        speed += acceleration * Time.fixedDeltaTime * GlobalParams.speedScale;
+
+        if (speed > maxSpeed) speed = maxSpeed;
+
+        Ray mouseRay = Camera.main.ScreenPointToRay(Input.mousePosition);
+        if (Physics.Raycast(mouseRay, out RaycastHit hit, 100))
         {
-            if (manager.currentState != StateManager.STATE.EVALUATE)
+            if (manager.CurrentState != StateManager.STATE.ATTACK && manager.CurrentState != StateManager.STATE.EVALUATE)
             {
-                rb.velocity = Vector3.zero;
+                targetPos = hit.point;
+                targetPos.y = rb.position.y;
             }
-            return;
+            rb.MovePosition(Vector3.MoveTowards(transform.position, targetPos, speed * Time.fixedDeltaTime * GlobalParams.speedScale));
         }
 
-        Vector3 direction = Vector3.zero;
-        direction.x = Input.GetAxis("Vertical");
-        direction.z = -Input.GetAxis("Horizontal");
-        direction.Normalize();
-
-        Vector3 velocity = rb.velocity;
-        velocity += direction * acceleration * Time.fixedDeltaTime;
-
-        if (velocity.x > fwdMaxSpeed) velocity.x = fwdMaxSpeed;
-        else if (velocity.x < -fwdMaxSpeed) velocity.x = -fwdMaxSpeed;
-        if (velocity.z > sideMaxSpeed) velocity.z = sideMaxSpeed;
-        else if (velocity.z < -sideMaxSpeed) velocity.z = -sideMaxSpeed;
-        rb.velocity = velocity;
-    }
-
-    IEnumerator AttackBash()
-    {
-        Vector3 bashForce = new Vector3(0, 0, 25f);
-        bool directionPicked = false;
-        // tooltip to pick direction
-
-        while (!directionPicked)
-        {
-            if (Input.GetKeyDown(KeyCode.LeftArrow)) { directionPicked = true; rb.AddForce(bashForce, ForceMode.VelocityChange); }
-            else if (Input.GetKeyDown(KeyCode.RightArrow)) { directionPicked = true; rb.AddForce(-bashForce, ForceMode.VelocityChange); }
-            yield return null;
-        }
-        
-        yield return new WaitForSecondsRealtime(0.4f);
-        rb.velocity = Vector3.zero; rb.angularVelocity = Vector3.zero;
-        yield return new WaitForSecondsRealtime(1.0f);
-        manager.currentState = StateManager.STATE.DRIVE;
-    }
-
-    IEnumerator AttackLaunchProjectile()
-    {
-        bool directionPicked = false;
-        
-        while (!directionPicked)
-        {
-            if (Input.GetKeyDown(KeyCode.UpArrow)) { directionPicked = true; Instantiate(projectilePrefab, transform.position, Quaternion.identity, transform); }
-            else if (Input.GetKeyDown(KeyCode.DownArrow)) { 
-                directionPicked = true;
-                GameObject projectile = Instantiate(projectilePrefab, transform.position, Quaternion.identity, transform);
-                projectile.GetComponent<ProjectileBehavior>().projectileSpeed *= -1;
-            }
-            yield return null;
-        }
-        
-        yield return new WaitForSecondsRealtime(4.0f);
-        manager.currentState = StateManager.STATE.DRIVE;
     }
 
     void Update()
     {
-        Vector3 currentPos = transform.position;
-
-        if (currentPos.x > GlobalParams.boundaryPosX)
+        // UpdateDirectionVector();
+        if (Physics.Raycast(carBody.transform.position, Vector3.down, out RaycastHit hit, 3f))
         {
-            currentPos.x = GlobalParams.boundaryPosX;
-            rb.velocity = Vector3.zero;
-        }
-        else if (currentPos.x < -GlobalParams.boundaryPosX)
-        {
-            currentPos.x = -GlobalParams.boundaryPosX;
-            rb.velocity = Vector3.zero;
-        }
-
-        if (currentPos.z > GlobalParams.boundaryPosZ)
-        {
-            currentPos.z = GlobalParams.boundaryPosZ;
-            rb.velocity = Vector3.zero;
-        }
-        else if (currentPos.z < -GlobalParams.boundaryPosZ)
-        {
-            currentPos.z = -GlobalParams.boundaryPosZ;
-            rb.velocity = Vector3.zero;
-        }
-
-        transform.position = currentPos;
-
-        if (manager.currentState == StateManager.STATE.ATTACK) {
-            if (Input.GetKeyDown(KeyCode.U))
-            {
-                print("do projectile attack");
-                StartCoroutine(AttackLaunchProjectile());
-                manager.currentState = StateManager.STATE.EVALUATE;
-            } else if (Input.GetKeyDown(KeyCode.I))
-            {
-                print("do side bash attack");
-                StartCoroutine(AttackBash());
-                manager.currentState = StateManager.STATE.EVALUATE;
-            }
+            if (hit.collider.CompareTag("Road")) dustParticles.SetActive(true);
+            else dustParticles.SetActive(false);
         }
     }
 }

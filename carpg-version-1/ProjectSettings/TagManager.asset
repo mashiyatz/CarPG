@@ -5,14 +5,17 @@ TagManager:
   serializedVersion: 2
   tags:
   - Enemy
+  - Bound
+  - Road
+  - Direction
   layers:
   - Default
   - TransparentFX
   - Ignore Raycast
-  - 
+  - Enemy
   - Water
   - UI
-  - 
+  - Direction
   - 
   - 
   - 

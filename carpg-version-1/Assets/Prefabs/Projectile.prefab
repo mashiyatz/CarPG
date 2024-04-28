@@ -119,7 +119,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: c9e522af8faa3c24a8b187b605829d82, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  projectileSpeed: 20
+  projectileSpeed: 50
+  isEnemy: 0
 --- !u!54 &6693382612870477282
 Rigidbody:
   m_ObjectHideFlags: 0
