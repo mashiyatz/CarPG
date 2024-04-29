@@ -147,3 +147,4 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   passengerType: 0
   projectilePrefab: {fileID: 3580343303408279681, guid: be84cb29e5bc2734b892b1d7fa74a4d7, type: 3}
+  dynamitePrefab: {fileID: 8531747298902835407, guid: a0c835b5a79e4b049ad80377a07520f7, type: 3}

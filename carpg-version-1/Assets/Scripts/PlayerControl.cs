@@ -20,9 +20,11 @@ public class PlayerControl : MonoBehaviour
     [SerializeField] private Transform livesContainer;
     [SerializeField] private GameObject livesIconPrefab;
     public GameObject[] directionIcons; // fwd, back, left, right
+    public GameObject aoeIndicator;
     private Vector3 targetPos;
     private int collisionCount = 0;
     private bool isImmune = false;
+    public bool isBashing = false;
 
     private void Awake()
     {
@@ -36,15 +38,17 @@ public class PlayerControl : MonoBehaviour
 
     public void LoseLife()
     {
-        if (livesContainer.childCount > 0)
+        if (livesContainer.childCount > 1)
         {
             Destroy(livesContainer.GetChild(0).gameObject);
-        } 
-        if (livesContainer.childCount <= 0)
+        }
+        else
         {
-            Application.Quit();
+            Destroy(livesContainer.GetChild(0).gameObject);
+            manager.RestartGame();  
         }
     }
+
 
     public IEnumerator HaveTemporaryImmunity(float duration = 0.5f)
     {
@@ -67,6 +71,7 @@ public class PlayerControl : MonoBehaviour
                 collisionCount = 0;
                 LoseLife();
             }
+            if (collision.collider.CompareTag("Enemy") && isBashing) Destroy(collision.collider.gameObject);
         } 
     }
 

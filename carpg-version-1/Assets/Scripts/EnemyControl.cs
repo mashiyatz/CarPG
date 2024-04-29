@@ -4,15 +4,16 @@ using UnityEngine;
 
 public class EnemyControl : MonoBehaviour
 {
-    // consider making a base class that can be overridden for controls
-
+ 
     private Rigidbody rb;
     [SerializeField] private float sideMaxSpeed;
+    [SerializeField] private float fwdMaxSpeed;
     private StateManager manager;
     [SerializeField] private GameObject projectilePrefab;
     // 
-    private Vector3 currentSpeed;
+    public Vector3 currentSpeed;
     private bool isAttacking;
+    private EnemySpawner spawner;
 
     private void Awake()
     {
@@ -22,8 +23,9 @@ public class EnemyControl : MonoBehaviour
     void Start()
     {
         rb = GetComponent<Rigidbody>();
+        spawner = transform.parent.GetComponent<EnemySpawner>();
         isAttacking = false;
-        currentSpeed = new Vector3(0, 0, sideMaxSpeed);
+        // currentSpeed = new Vector3(fwdMaxSpeed, 0, sideMaxSpeed);
     }
 
     private void FixedUpdate()
@@ -33,15 +35,18 @@ public class EnemyControl : MonoBehaviour
 
     private void OnCollisionEnter(Collision collision)
     {
-        if (collision.transform.CompareTag("Player"))
+        if (collision.transform.CompareTag("Player") || collision.transform.CompareTag("Enemy"))
         {
             currentSpeed = -currentSpeed;
-            // note that bullet goes after bash -- is this worth keeping?
-            if (manager.CurrentState == StateManager.STATE.EVALUATE) Destroy(gameObject);
+            // if (manager.CurrentState == StateManager.STATE.EVALUATE) Destroy(gameObject);
         } else if (collision.transform.CompareTag("Bound"))
         {
-            currentSpeed = -currentSpeed;
-        }
+            if (collision.transform.name == "Side") currentSpeed.z *= -1;
+            if (collision.transform.name == "Front") currentSpeed.x *= -1;
+        } else if (collision.collider.CompareTag("Obstacle"))
+        {
+            Destroy(gameObject); 
+        } 
 
 
     }
@@ -51,18 +56,29 @@ public class EnemyControl : MonoBehaviour
         if (Random.Range(0, 100) > 50) return 1; else return -1;
     }
 
+    private int ChooseShotDirection()
+    {
+        if (transform.position.x > spawner.player.transform.position.x) return -1;
+        else return 1;
+    }
+
     IEnumerator AttackLaunchProjectile()
     {
         GameObject projectile = Instantiate(projectilePrefab, transform.position, Quaternion.identity, transform);
-        projectile.GetComponent<ProjectileBehavior>().projectileSpeed *= CoinFlip();
+        projectile.GetComponent<ProjectileBehavior>().projectileSpeed *= ChooseShotDirection();
         
         yield return new WaitForSecondsRealtime(4.0f);
         
     }
 
-        void Update()
+    void Update()
     {
         // attack
+        if (transform.position.x > -20 && !GetComponent<Collider>().enabled)
+        {
+            GetComponent<Collider>().enabled = true;
+            currentSpeed = new Vector3(Random.Range(fwdMaxSpeed/2, fwdMaxSpeed), 0, Random.Range(sideMaxSpeed/2, sideMaxSpeed));
+        }
 
         if (manager.CurrentState == StateManager.STATE.WAIT && !isAttacking)
         {

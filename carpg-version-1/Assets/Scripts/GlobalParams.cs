@@ -31,7 +31,7 @@ public class GlobalParams
             { Archetype.SNIPER, "Bullet" },
             { Archetype.BOMBER, "Jump" },
             { Archetype.DRIVER, "Bash" },
-            { Archetype.MECH, "Bullet" }
+            { Archetype.MECH, "Dynamite" }
     };
 
     public static Dictionary<Archetype, Color> typeToColor = new()

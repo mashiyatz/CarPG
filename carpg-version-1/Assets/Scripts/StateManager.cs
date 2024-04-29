@@ -4,6 +4,7 @@ using UnityEngine;
 using UnityEngine.UI;
 using TMPro;
 using UnityEditor.Experimental.GraphView;
+using UnityEngine.SceneManagement;
 
 public class StateManager : MonoBehaviour
 {
@@ -12,6 +13,8 @@ public class StateManager : MonoBehaviour
     private float lagScale = 1.0f;
     [SerializeField] private Renderer roadRenderer;
     public CameraShake cameraFX;
+    private Coroutine delay = null;
+    [SerializeField] private PlayerControl player;
 
     public STATE CurrentState
     {
@@ -86,6 +89,25 @@ public class StateManager : MonoBehaviour
         GlobalParams.attackDirection = dir;
     }
 
+    public void RestartGame()
+    {
+        Destroy(player.gameObject);
+        StartCoroutine(ToRestart());
+    }
+
+    IEnumerator ToRestart()
+    {
+        yield return new WaitForSecondsRealtime(3.0f);
+        SceneManager.LoadScene(SceneManager.GetActiveScene().name);
+    }
+
+    IEnumerator DelayStateChange()
+    {
+        yield return new WaitForSecondsRealtime(0.25f);
+        CurrentState = STATE.DRIVE;
+        delay = null;
+    }
+
     void Update()
     {
         if (CurrentState == STATE.DRIVE)
@@ -115,7 +137,12 @@ public class StateManager : MonoBehaviour
             }
         } else if (CurrentState == STATE.WAIT)
         {
-
+            foreach (GameObject dir in player.directionIcons)
+            {
+                if (dir.activeSelf) dir.SetActive(false);
+            }
+            player.aoeIndicator.SetActive(false);
+            delay ??= StartCoroutine(DelayStateChange());
         }
     }
 }

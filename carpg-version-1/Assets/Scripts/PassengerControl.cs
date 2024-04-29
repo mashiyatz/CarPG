@@ -1,5 +1,6 @@
 using System.Collections;
 using System.Collections.Generic;
+using System.Diagnostics;
 using Unity.VisualScripting;
 using UnityEngine;
 using UnityEngine.UI;
@@ -8,6 +9,7 @@ public class PassengerControl : MonoBehaviour
 {
     public GlobalParams.Archetype passengerType;
     public GameObject projectilePrefab;
+    public GameObject dynamitePrefab;
     public Coroutine attack;
     private StateManager manager;
     private PlayerControl player;
@@ -71,8 +73,6 @@ public class PassengerControl : MonoBehaviour
         player.directionIcons[0].SetActive(false);
         player.directionIcons[1].SetActive(false);
         manager.CurrentState = StateManager.STATE.WAIT;
-        yield return new WaitForSecondsRealtime(0.25f);
-        manager.CurrentState = StateManager.STATE.DRIVE;
         
     }
 
@@ -88,14 +88,13 @@ public class PassengerControl : MonoBehaviour
 
         if (GlobalParams.attackDirection == GlobalParams.Direction.LEFT) player.GetComponent<Rigidbody>().AddForce(bashForce, ForceMode.VelocityChange);
         else if (GlobalParams.attackDirection == GlobalParams.Direction.RIGHT) player.GetComponent<Rigidbody>().AddForce(-bashForce, ForceMode.VelocityChange);
-
+        player.isBashing = true;
         player.directionIcons[2].SetActive(false);
         player.directionIcons[3].SetActive(false);
         yield return new WaitForSecondsRealtime(0.4f);
         player.GetComponent<Rigidbody>().velocity = Vector3.zero; player.GetComponent<Rigidbody>().angularVelocity = Vector3.zero;
         manager.CurrentState = StateManager.STATE.WAIT;
-        yield return new WaitForSecondsRealtime(0.25f);
-        manager.CurrentState = StateManager.STATE.DRIVE;     
+        player.isBashing = false;
     }
 
     IEnumerator Jump()
@@ -103,9 +102,38 @@ public class PassengerControl : MonoBehaviour
         Animator anim = player.GetComponent<Animator>();
         anim.Play("Jump");
         StartCoroutine(player.HaveTemporaryImmunity(1.0f));
-        manager.CurrentState = StateManager.STATE.WAIT;
         yield return new WaitForSecondsRealtime(0.25f);
-        manager.CurrentState = StateManager.STATE.DRIVE;
+        manager.CurrentState = StateManager.STATE.WAIT;
+    }
+
+    IEnumerator Dynamite()
+    {
+        bool isLocationSelected = false;
+        Vector3 location = Vector3.zero;
+        player.aoeIndicator.SetActive(true);
+        while (!isLocationSelected)
+        {
+            Ray mouseRay = Camera.main.ScreenPointToRay(Input.mousePosition);
+            if (Physics.Raycast(mouseRay, out RaycastHit hit, 100))
+            {
+                if (Vector3.Distance(hit.point, player.transform.position) < 15)
+                {
+                    // UnityEngine.Debug.Log(Vector3.Distance(hit.point, player.transform.position));
+                    if (Input.GetMouseButtonDown(0))
+                    {
+                        isLocationSelected = true;
+                        location = hit.point;
+                    }
+                }
+            }
+            yield return null;
+        }
+        player.aoeIndicator.SetActive(false);
+        GameObject go = Instantiate(dynamitePrefab, player.transform.position + Vector3.up, Quaternion.identity);
+        go.GetComponent<DynamiteBehavior>().destination = location;
+
+        yield return new WaitForSecondsRealtime(0.25f);
+        manager.CurrentState = StateManager.STATE.WAIT;
     }
 
 
